@@ -31,12 +31,8 @@
   "bin": {
     "testister": "./bin/test-runner"
   },
-  "scripts": {
-    "test": "cake test"
-  },
   "dependencies": {
     "commander": "~ 1.0.5",
-    "mocha-phantomjs": ">= 1.0.1",
     "express": "3.x",
     "phantomjs": "1.9"
   },
@@ -44,6 +40,5 @@
   "_id": "testister@0.0.1",
   "dist": {
     "shasum": "5fe959f6e794a03f806ffb95f023bfbde7f45548"
-  },
-  "_from": "node_modules-old/testister/"
+  }
 }
