@@ -1,0 +1,349 @@
+#!/usr/bin/env node
+
+/**
+ * this is a Cli for Purpus of this class is to forst
+ */
+
+var program = require('commander'),
+      spawn = require('child_process').spawn,
+      print = require('util').print,
+         fs = require('fs'),
+       path = require('path'),
+     exists = fs.existsSync || path.existsSync,
+    testDir = 'src/test/',
+    mainDir = 'src/main/',
+        cwd = process.cwd();
+
+program
+  .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
+  .usage('[options] page')
+  .option('-R, --reporter <name>', 'specify the reporter to use', 'spec')
+  .option('-s, --scaffold ','Creates html test files for every test module')
+  .option('-t, --testDir <testdir>','the path to the test directory')
+  .option('-m, --mainDir <maindir>','the path to the main directory')
+  .option('-e, --extension <extension>', 'the test file extention (default spec.js)')
+  .option('-p, --port <port>', 'port to start local http server')
+  .option('-S, --server ', 'Start a http server on port 3000 if no other port is defined with using -p --port parameter')
+  .option('-l, --logdir <logg-dir>', 'Specify the log output files')
+
+program.on('--help', function(){
+  console.log('  Examples:');
+  console.log('This package are based on mocha-phantomjs package all cred to them');
+  console.log('');
+  console.log('');
+  console.log('');
+});
+
+program.parse(process.argv);
+
+var opt = {
+  extension : program.extension || 'spec.js',
+  mainDir : program.mainDir || 'src/main',
+  testDir : program.testDir || 'src/test',
+  reporter : program.reporter || 'tap',
+  httpPort: program.port || 3000,
+  serverOnly : program.server,
+  logDir : program.logdir || 'target',
+  scaffold : program.scaffold,
+  script: fs.realpathSync(__dirname + '/../lib/testister.js')
+// script: fs.realpathSync(__dirname +
+// '/../node_modules/mocha-phantomjs/lib/mocha-phantomjs.coffee'),
+}
+
+if (opt.scaffold){
+	scaffoldHtml(opt,true);
+	if (! opt.serverOnly){
+		process.exit(0);
+	}
+}
+
+var app = startHttpServer(opt.httpPort);
+
+if (! opt.serverOnly){
+	var testSuiteFiles = scaffoldHtml(opt);
+	var testSuiteUrls = filePathToUrl(testSuiteFiles, 'http://localhost:'+ opt.httpPort);
+	var testRunner = new TestRunner(testSuiteUrls,opt);
+	testRunner.run();
+}
+
+
+function startHttpServer(port){	
+	var express = require('express');
+	var app = express();
+	app
+		.use('/main', express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
+		.use('/test', express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
+		.use(express.static(path.normalize(__dirname + "/../testlib")))
+		.use('/main', express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
+		.use('/test', express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
+		.use(express.directory(path.normalize(__dirname + "/../testlib")))
+
+	console.log('Starting local Http server on Port :'+ port);
+	app.listen(port);
+	return app;
+}
+
+function scaffoldHtml(opt, force){
+	var _testSuitFiles = lookupFiles(opt.testDir, [opt.extension])
+		,testHtmlFiles = [];
+	
+	for (var i=0; i < _testSuitFiles.length; i++){
+		var file = _testSuitFiles[i]
+			,testHtmlFile = path.resolve(path.dirname(file)+path.sep+path.basename(file, opt.extension)+'html');
+		
+		if (force == true || !fs.existsSync(testHtmlFile)){
+			var scaffoldPage = createHtmlPage(file,opt.mainDir,opt.testDir);
+			testHtmlFile = writeFileToDisk(scaffoldPage, path.dirname(file), path.basename(file, opt.extension)+'html');
+		}
+		testHtmlFiles.push(testHtmlFile);
+	}
+	return testHtmlFiles;
+}
+
+function filePathToUrl(filePaths, host){
+	var urls = [];
+	path = require('path');
+	rec(filePaths);
+	function rec(filePaths){
+		file = filePaths.pop();
+		if (file){
+			file = path.relative(process.cwd(),file);
+			urls.push(file.replace(testDir, host + '/test/'))
+			rec(filePaths);
+		}
+	}
+	return urls
+}
+
+/**
+ * Creates a testrunner that run a single html file at a time.
+ */
+function TestRunner(testSuiteUrls, opt){
+
+	var fs = require('fs')
+		,self = this
+		,result = true
+		,logFile
+		,errorFile;
+	
+	this.run = function (){
+		var output= ""
+			,buffer = "";// new Buffer(output);
+		runTestSuit(opt.script, testSuiteUrls, opt.reporter);
+				
+		// the test is finish create result
+		function runTestSuit(script, pages, reporter ){
+			var config = JSON.stringify({
+				timeout: program.timeout,
+				cookies: [],
+				headers: {},
+				settings: {},
+				logDir: opt.logDir,
+				urls: pages
+				// viewportSize: program.view,
+				// useColors: program.color
+			});
+			var spawnArgs = [script, reporter, config];
+
+			var phantomjs;
+			for (var i=0; i < module.paths.length; i++) {
+				var bin = path.join(module.paths[i], '.bin/phantomjs');
+				if (process.platform === 'win32') {
+					bin += '.cmd';
+				}
+				if (exists(bin)) {
+					phantomjs = spawn(bin, spawnArgs);
+					break;
+				}
+			}
+			if (phantomjs === undefined) { 
+				phantomjs = spawn('phantomjs', spawnArgs); 
+			}
+
+			phantomjs.stdout.on('data', function(data){
+				print(data);
+			});
+			
+			phantomjs.stderr.on('data', function(data){
+				print("ERROR" + data);
+			});
+			
+			phantomjs.on('error', function(error){
+				print('ERROR : Testrunner onError ', error)
+			});
+			
+			phantomjs.on('exit', function(code){		
+				if (code != 0){
+					result = false;
+				}
+
+				if (result){
+					process.exit(0);
+				}else {
+					process.exit(1);
+				}
+			});			
+		}
+	}
+}
+
+
+
+/**
+ * Lookup file names at the given `path` that match extension
+ * 
+ * @paran path [String] path to directory
+ * @param extentions
+ *            [String] extension of file default spec.js
+ */
+function lookupFiles(path, extensions) {
+	extensions = extensions ||  ['spec.js'];
+	var pathModule = require('path')
+  	,join = pathModule.join
+  	,basename = pathModule.basename
+    ,stat
+  	,files = []
+  	,re = new RegExp('\\.(' + extensions.join('|') + ')$');
+	
+  if (exists(path)) {
+	  stat = fs.statSync(path);
+	  if (stat.isFile()) return path;
+  }
+  fs.readdirSync(path).forEach(function(file){
+    file = join(path, file);
+    var stat = fs.statSync(file);
+    if (stat.isDirectory()) {
+      files = files.concat(lookupFiles(file,extensions));
+    }
+    if (!stat.isFile() || !re.test(file) || basename(file)[0] == '.') return;
+    files.push(file);
+  });
+  return files;
+}
+
+/**
+ * Create a
+ */
+function writeFileToDisk(string,directory,filename){
+	var fs = require('fs');
+	filePath = path.resolve(directory+path.sep,filename)
+	fs.writeFileSync(filePath,string);
+	return filePath;
+};
+
+/**
+ * Creates a requireJs driven html test page with mocka and chai (
+ * 
+ * @param files
+ *            [Array] of javascript test files to be used in this test case
+ * @param mainDir
+ *            [String] path to the root of the javascrit for the app
+ * @param mainDir
+ *            [String] path to the test root of the javascrit.
+ * @return [String] a string containing the html with html doctype
+ */
+function createHtmlPage(files,mainDir,testDir) {
+	var relToTestDir
+	,relToMainDir
+	,relMainToTest 
+	,i;
+	
+	if ( !(files instanceof Array) || files.length == 1){	  
+		var file = files;
+		var fileDir = path.dirname(file);
+		relToTestDir = path.relative(fileDir,testDir)+'/';
+		relToMainDir = path.relative(fileDir,mainDir)+'/';
+		relTestToMain = '../' + path.relative(testDir, mainDir) + '/';	
+		relMainToTest = '../' + path.relative(mainDir,testDir) + '/';	
+		file = file.replace(testDir+'/','');
+		files = [file.replace('.js','')];
+	}else{
+		relToTestDir = '';
+		relToMainDir = '../main/';
+		relMainToTest = '../../test/';		
+		for (i = 0 ; files.length > i ; i++){
+			files[i]=files[i].replace(testDir,'');
+		};
+	}
+
+	// OBS !! function to be included by fn.toString in html, do not treat as a
+	// usualy function
+	function fn(relToMainDir,relMainToTest,relToTestDir,paths){
+		// Configure RequireJS
+		require.config({
+			baseUrl: relToMainDir+'js',
+			paths : {
+				spec : relMainToTest+'spec',
+				js : relMainToTest+'js',
+				vendor: relMainToTest + 'vendor',
+				resources: relTestToMain + 'resources'
+			}
+		});
+		/*
+		 * Here load and sett upp global objects accessable in test modules.
+		 */
+		
+		require(['require','vendor/chai','vendor/expect','vendor/sinon-1.5.2','vendor/assert','vendor/mocha'], function(require,chai){
+			mocha.setup('bdd');
+			testSuits = testSuits;
+			require(testSuits, function(BaseSpec){
+				if (window.mochaPhantomJS) { 
+					mochaPhantomJS.run();
+				}else {
+					mocha.setup({reporter:'html'});
+					mocha.run();
+				}	
+			});
+		});
+	};
+	var html = '<!DOCTYPE html><html>\n<head>\n'+
+		'<title>Bolli Test runner</title>\n'+
+		'<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">\n'+
+		'<link rel="stylesheet" href="'+relToTestDir+'vendor/mocha.css" />\n'+
+		'<script src="'+relToTestDir+'vendor/require.js" type="text/javascript"></script>\n'+
+		'<script>\n'+
+		// here it starts
+		'testSuits = '+JSON.stringify(files)+';\n'+
+		'relToTestDir="'+relToTestDir+'"\n'+
+		'relMainToTest="'+relMainToTest+'"\n'+
+		'relTestToMain="'+relTestToMain+'"\n'+
+		'relToMainDir="'+relToMainDir+'"\n'+
+		fn.toString()+ '\n'+
+		'fn(relToMainDir,relMainToTest,relToTestDir);\n'+
+		'</script>\n'+
+		'</head>\n<body><div id="mocha"></div></body>\n</html>';
+	return html;
+}
+
+/*	function filterSuits(suits,filterArray){
+	var filteredSuits= [];
+	for (var i = 0 ; i < suits.length;i++){
+		for (var k=0; k < filterArray.length ; k++){
+			if (suits[i] == filterArray[k]){
+				filteredSuits.push(suits[i]);
+			}
+		} 
+	}
+	if (filteredSuits.length > 0){
+		return filteredSuits								
+	} else {
+		return suits;
+	}
+}
+
+function getFilterSuitsFromUrl(){
+    var vars = {};
+	var parts = window.location.href.replace(
+		/[?&]+([^=&]+)=([^&]*)/gi, 
+		function(m,key,value) {
+			vars[key] = value;
+		}
+	);
+		if (vars['suits']) {
+			return vars['suits'].split(',');
+		}else{
+			return [];
+		} 
+		
+}
+*/
