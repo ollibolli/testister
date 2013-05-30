@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Testister Test runner</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" href="<%= relToTestDir %>testvendor/mocha.css" />
+<script src=" <%= relToTestDir %>testvendor/require.js"
+	type="text/javascript"></script>
+<script> 
+	// here it starts
+		require.config({  
+	 		baseUrl: "/js",  
+	 		paths : {   
+	 			test : '<%= relToTestDir %>' + 'test',  
+	 			chai : '<%= relMainToTest %>' + "testvendor/chai",
+	 			sinon : '<%= relMainToTest %>' + "testvendor/sinon-1.5.2",
+	 			testvendor: '<%= relMainToTest %>' + "testvendor",  
+	 			resources: '<%= relTestToMain %>' + "resources",
+	 		},
+	 	});  
+	 /*  
+	  * Here load and sett upp global objects accessable in test modules.  
+	  */  
+		  
+		require([ 'require' , 'testvendor/mocha' ], function(require){ 
+		 	mocha.setup("bdd");  
+		 	require( <%- testSuites %> , function(BaseSpec){  
+		 		if (window.mochaPhantomJS) {   
+		 			mochaPhantomJS.run();  
+		 		}else {  
+		 			mocha.setup({reporter:"html"});  
+		 			mocha.run();  
+		 		}  	
+		 	});  
+		 });  
+		  
+		 </script>
+</head>
+<body>
+	<div id="mocha"></div>
+</body>
+</html>

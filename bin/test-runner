@@ -45,6 +45,7 @@ var opt = {
   serverOnly : program.server,
   logDir : program.logdir || 'target',
   scaffold : program.scaffold,
+  template : '../template.html',
   script: fs.realpathSync(__dirname + '/../lib/testister.js')
 // script: fs.realpathSync(__dirname +
 // '/../node_modules/mocha-phantomjs/lib/mocha-phantomjs.coffee'),
@@ -71,11 +72,11 @@ function startHttpServer(port){
 	var express = require('express');
 	var app = express();
 	app
-		.use('/main', express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
-		.use('/test', express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
+		.use(express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
+		.use('/test',express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
 		.use(express.static(path.normalize(__dirname + "/../testlib")))
-		.use('/main', express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
-		.use('/test', express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
+		.use(express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
+		.use('/test',express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
 		.use(express.directory(path.normalize(__dirname + "/../testlib")))
 
 	console.log('Starting local Http server on Port :'+ port);
@@ -242,21 +243,24 @@ function writeFileToDisk(string,directory,filename){
  *            [String] path to the test root of the javascrit.
  * @return [String] a string containing the html with html doctype
  */
-function createHtmlPage(files,mainDir,testDir) {
+function createHtmlPage(files,mainDir,testDir,templatePath) {
 	var relToTestDir
 	,relToMainDir
 	,relMainToTest 
-	,i;
+	,i
+	,replacements = {}
+	,ejs = require('ejs');
 	
 	if ( !(files instanceof Array) || files.length == 1){	  
 		var file = files;
 		var fileDir = path.dirname(file);
-		relToTestDir = path.relative(fileDir,testDir)+'/';
-		relToMainDir = path.relative(fileDir,mainDir)+'/';
-		relTestToMain = '../' + path.relative(testDir, mainDir) + '/';	
-		relMainToTest = '../' + path.relative(mainDir,testDir) + '/';	
-		file = file.replace(testDir+'/','');
-		files = [file.replace('.js','')];
+		replacements.relToTestDir = path.relative(fileDir,testDir)+'/';
+		replacements.relToMainDir = path.relative(fileDir,mainDir)+'/';
+		replacements.relTestToMain = '../' + path.relative(testDir, mainDir) + '/';	
+		replacements.relMainToTest = '../' + path.relative(mainDir,testDir) + '/';	
+		file = file.replace(testDir+'/','test/');
+		replacements.testSuites = JSON.stringify([file.replace('.js','')]);
+		
 	}else{
 		relToTestDir = '';
 		relToMainDir = '../main/';
@@ -265,85 +269,14 @@ function createHtmlPage(files,mainDir,testDir) {
 			files[i]=files[i].replace(testDir,'');
 		};
 	}
-
-	// OBS !! function to be included by fn.toString in html, do not treat as a
-	// usualy function
-	function fn(relToMainDir,relMainToTest,relToTestDir,paths){
-		// Configure RequireJS
-		require.config({
-			baseUrl: relToMainDir+'js',
-			paths : {
-				spec : relMainToTest+'spec',
-				js : relMainToTest+'js',
-				vendor: relMainToTest + 'vendor',
-				resources: relTestToMain + 'resources'
-			}
-		});
-		/*
-		 * Here load and sett upp global objects accessable in test modules.
-		 */
+	
+	var testSuites = [];
+	for (var i in files){
+		testSuites.push('test/'+files[i]);
+	}
+	
+	template = fs.readFileSync(path.resolve(__dirname+ path.sep+ opt.template),'utf-8');
+	html = ejs.render(template, replacements);
 		
-		require(['require','vendor/chai','vendor/expect','vendor/sinon-1.5.2','vendor/assert','vendor/mocha'], function(require,chai){
-			mocha.setup('bdd');
-			testSuits = testSuits;
-			require(testSuits, function(BaseSpec){
-				if (window.mochaPhantomJS) { 
-					mochaPhantomJS.run();
-				}else {
-					mocha.setup({reporter:'html'});
-					mocha.run();
-				}	
-			});
-		});
-	};
-	var html = '<!DOCTYPE html><html>\n<head>\n'+
-		'<title>Bolli Test runner</title>\n'+
-		'<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">\n'+
-		'<link rel="stylesheet" href="'+relToTestDir+'vendor/mocha.css" />\n'+
-		'<script src="'+relToTestDir+'vendor/require.js" type="text/javascript"></script>\n'+
-		'<script>\n'+
-		// here it starts
-		'testSuits = '+JSON.stringify(files)+';\n'+
-		'relToTestDir="'+relToTestDir+'"\n'+
-		'relMainToTest="'+relMainToTest+'"\n'+
-		'relTestToMain="'+relTestToMain+'"\n'+
-		'relToMainDir="'+relToMainDir+'"\n'+
-		fn.toString()+ '\n'+
-		'fn(relToMainDir,relMainToTest,relToTestDir);\n'+
-		'</script>\n'+
-		'</head>\n<body><div id="mocha"></div></body>\n</html>';
 	return html;
 }
-
-/*	function filterSuits(suits,filterArray){
-	var filteredSuits= [];
-	for (var i = 0 ; i < suits.length;i++){
-		for (var k=0; k < filterArray.length ; k++){
-			if (suits[i] == filterArray[k]){
-				filteredSuits.push(suits[i]);
-			}
-		} 
-	}
-	if (filteredSuits.length > 0){
-		return filteredSuits								
-	} else {
-		return suits;
-	}
-}
-
-function getFilterSuitsFromUrl(){
-    var vars = {};
-	var parts = window.location.href.replace(
-		/[?&]+([^=&]+)=([^&]*)/gi, 
-		function(m,key,value) {
-			vars[key] = value;
-		}
-	);
-		if (vars['suits']) {
-			return vars['suits'].split(',');
-		}else{
-			return [];
-		} 
-		
-}
-*/
