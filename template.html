@@ -11,11 +11,11 @@
 		require.config({  
 	 		baseUrl: "/js",  
 	 		paths : {   
-	 			test : '<%= relToTestDir %>' + 'test',  
-	 			chai : '<%= relMainToTest %>' + "testvendor/chai",
-	 			sinon : '<%= relMainToTest %>' + "testvendor/sinon-1.5.2",
-	 			testvendor: '<%= relMainToTest %>' + "testvendor",  
-	 			resources: '<%= relTestToMain %>' + "resources",
+	 			//testvendor: '<%= relMainToTest %>' + "testvendor",  
+	 			testvendor:'../test/testvendor',
+	 			chai : "../test/testvendor/chai",
+	 			test : '../test',  
+	 			sinon : "../test/testvendor/sinon-1.5.2",
 	 		},
 	 	});  
 	 /*  

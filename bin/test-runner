@@ -17,39 +17,45 @@ var program = require('commander'),
 program
   .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
   .usage('[options] page')
-  .option('-R, --reporter <name>', 'specify the reporter to use', 'spec')
-  .option('-s, --scaffold ','Creates html test files for every test module')
-  .option('-t, --testDir <testdir>','the path to the test directory')
-  .option('-m, --mainDir <maindir>','the path to the main directory')
-  .option('-e, --extension <extension>', 'the test file extention (default spec.js)')
-  .option('-p, --port <port>', 'port to start local http server')
-  .option('-S, --server ', 'Start a http server on port 3000 if no other port is defined with using -p --port parameter')
-  .option('-l, --logdir <logg-dir>', 'Specify the log output files')
+  .option('-R, --reporter <name>', 'Specify the reporter to use (default spec)', 'spec')
+  .option('-s, --scaffold ','Creates a html test files for every test module')
+  .option('-t, --testDir <testdir>','Specify the path to the test directory (default src/test)','src/test')
+  .option('-m, --mainDir <maindir>','Specify the path to the main directory (default src/main)','src/main')
+  .option('-e, --extension <extension>', 'Specify the test file extention (default spec.js)','spec.js')
+  .option('-p, --port <port>', 'The port to start local http server (default 3000)',3000)
+  .option('-S, --server ', 'Start a http server')
+  .option('-l, --logdir <logg-dir>', 'Specify the log output files (default targer)','target')
+  .option('-x, --template <template>','Specify the path to a template file (default node_modules/testister/template.html','node_modules/testister/template.html')
 
 program.on('--help', function(){
-  console.log('  Examples:');
-  console.log('This package are based on mocha-phantomjs package all cred to them');
+  console.log('Examples:');
+  console.log('This package is a comandline and browser based test-framework for testing amd modules using the requireJs library.');
   console.log('');
-  console.log('');
+  console.log('The the testframework is based on requireJs as Amd loader, Mocha as test library, Chai as assertion library and Sinon as mock library ');
+  console.log('Testister is');
   console.log('');
 });
 
 program.parse(process.argv);
 
 var opt = {
-  extension : program.extension || 'spec.js',
-  mainDir : program.mainDir || 'src/main',
-  testDir : program.testDir || 'src/test',
-  reporter : program.reporter || 'tap',
-  httpPort: program.port || 3000,
+  extension : program.extension,
+  mainDir : program.mainDir ,
+  testDir : program.testDir ,
+  reporter : program.reporter ,
+  httpPort: program.port ,
   serverOnly : program.server,
-  logDir : program.logdir || 'target',
+  logDir : program.logdir ,
   scaffold : program.scaffold,
-  template : '../template.html',
+  template : program.template,
   script: fs.realpathSync(__dirname + '/../lib/testister.js')
 // script: fs.realpathSync(__dirname +
 // '/../node_modules/mocha-phantomjs/lib/mocha-phantomjs.coffee'),
 }
+
+//remove trailing slashes if they exists
+opt.mainDir = opt.mainDir.replace(/\/$/, "");
+opt.testDir = opt.testDir.replace(/\/$/, "");
 
 if (opt.scaffold){
 	scaffoldHtml(opt,true);
@@ -72,8 +78,8 @@ function startHttpServer(port){
 	var express = require('express');
 	var app = express();
 	app
-		.use(express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
 		.use('/test',express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
+		.use(express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
 		.use(express.static(path.normalize(__dirname + "/../testlib")))
 		.use(express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
 		.use('/test',express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
@@ -93,7 +99,7 @@ function scaffoldHtml(opt, force){
 			,testHtmlFile = path.resolve(path.dirname(file)+path.sep+path.basename(file, opt.extension)+'html');
 		
 		if (force == true || !fs.existsSync(testHtmlFile)){
-			var scaffoldPage = createHtmlPage(file,opt.mainDir,opt.testDir);
+			var scaffoldPage = createHtmlPage(file,opt.mainDir,opt.testDir,opt.template);
 			testHtmlFile = writeFileToDisk(scaffoldPage, path.dirname(file), path.basename(file, opt.extension)+'html');
 		}
 		testHtmlFiles.push(testHtmlFile);
@@ -109,7 +115,7 @@ function filePathToUrl(filePaths, host){
 		file = filePaths.pop();
 		if (file){
 			file = path.relative(process.cwd(),file);
-			urls.push(file.replace(testDir, host + '/test/'))
+			urls.push(file.replace(opt.testDir, host + '/test'))
 			rec(filePaths);
 		}
 	}
@@ -275,7 +281,7 @@ function createHtmlPage(files,mainDir,testDir,templatePath) {
 		testSuites.push('test/'+files[i]);
 	}
 	
-	template = fs.readFileSync(path.resolve(__dirname+ path.sep+ opt.template),'utf-8');
+	template = fs.readFileSync(path.resolve(process.cwd()+ path.sep+ templatePath),'utf-8');
 	html = ejs.render(template, replacements);
 		
 	return html;
