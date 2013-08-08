@@ -5,14 +5,13 @@
  */
 
 var program = require('commander'),
-      spawn = require('child_process').spawn,
-      print = require('util').print,
-         fs = require('fs'),
-       path = require('path'),
-     exists = fs.existsSync || path.existsSync,
+    spawn = require('child_process').spawn,
+    print = require('util').print,
+    chokidar = require('chokidar'),
+    FileSystemService = require('../lib/FileSystemService'),
     testDir = 'src/test/',
     mainDir = 'src/main/',
-        cwd = process.cwd();
+    cwd = process.cwd();
 
 program
   .version(JSON.parse(fs.readFileSync(__dirname + '/../package.json', 'utf8')).version)
@@ -23,11 +22,12 @@ program
   .option('-m, --mainDir <maindir>','Specify the path to the main directory (default src/main)','src/main')
   .option('-e, --extension <extension>', 'Specify the test file extention (default spec.js)','spec.js')
   .option('-p, --port <port>', 'The port to start local http server (default 3000)',3000)
-  .option('-S, --server ', 'Start a http server')
+  .option('-S, --server ', 'Start a http server',false)
   .option('-l, --logdir <logg-dir>', 'Specify the log output files (default targer)','target')
   .option('-x, --template <template>','Specify the path to a template file (default node_modules/testister/template.html','node_modules/testister/template.html')
-
-program.on('--help', function(){
+  .option('-c, --configfile <configfile>','Url to a configfile in json format','testister.conf');
+  
+  program.on('--help', function(){
   console.log('Examples:');
   console.log('This package is a comandline and browser based test-framework for testing amd modules using the requireJs library.');
   console.log('');
@@ -48,17 +48,22 @@ var opt = {
   logDir : program.logdir ,
   scaffold : program.scaffold,
   template : program.template,
-  script: fs.realpathSync(__dirname + '/../lib/testister.js')
-// script: fs.realpathSync(__dirname +
-// '/../node_modules/mocha-phantomjs/lib/mocha-phantomjs.coffee'),
+  script: fs.realpathSync(__dirname + '/../lib/testister.js'),
 }
 
 //remove trailing slashes if they exists
 opt.mainDir = opt.mainDir.replace(/\/$/, "");
 opt.testDir = opt.testDir.replace(/\/$/, "");
 
+var fileService = new FileSystemService(opt);
+var config = fileService.getConfig(program.configfile);
+//merge config to opt overiding defaults
+for (var method in config){
+	opt[method] = config[method];
+}
+
 if (opt.scaffold){
-	scaffoldHtml(opt,true);
+	fileService.scaffoldHtml(opt,true);
 	if (! opt.serverOnly){
 		process.exit(0);
 	}
@@ -67,60 +72,29 @@ if (opt.scaffold){
 var app = startHttpServer(opt.httpPort);
 
 if (! opt.serverOnly){
-	var testSuiteFiles = scaffoldHtml(opt);
-	var testSuiteUrls = filePathToUrl(testSuiteFiles, 'http://localhost:'+ opt.httpPort);
+	var testSuiteFiles = fileService.scaffoldHtml();
+	var testSuiteUrls = fileService.filePathToUrl(testSuiteFiles, 'http://localhost:'+ opt.httpPort);
 	var testRunner = new TestRunner(testSuiteUrls,opt);
 	testRunner.run();
 }
-
 
 function startHttpServer(port){	
 	var express = require('express');
 	var app = express();
 	app
-		.use('/test',express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
-		.use(express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
-		.use(express.static(path.normalize(__dirname + "/../testlib")))
-		.use(express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
-		.use('/test',express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
-		.use(express.directory(path.normalize(__dirname + "/../testlib")))
+	.use('/test',express.static(path.normalize(process.cwd() + '/'+ opt.testDir)))
+	.use(express.static(path.normalize(process.cwd() + '/'+ opt.mainDir)))
+	.use(express.static(path.normalize(__dirname + "/../testlib")))
+	.use(express.directory(path.normalize(process.cwd() + '/' + opt.mainDir)))
+	.use('/test',express.directory(path.normalize(process.cwd() + '/' + opt.testDir)))
+	.use(express.directory(path.normalize(__dirname + "/../testlib")))
 
 	console.log('Starting local Http server on Port :'+ port);
 	app.listen(port);
 	return app;
 }
 
-function scaffoldHtml(opt, force){
-	var _testSuitFiles = lookupFiles(opt.testDir, [opt.extension])
-		,testHtmlFiles = [];
-	
-	for (var i=0; i < _testSuitFiles.length; i++){
-		var file = _testSuitFiles[i]
-			,testHtmlFile = path.resolve(path.dirname(file)+path.sep+path.basename(file, opt.extension)+'html');
-		
-		if (force == true || !fs.existsSync(testHtmlFile)){
-			var scaffoldPage = createHtmlPage(file,opt.mainDir,opt.testDir,opt.template);
-			testHtmlFile = writeFileToDisk(scaffoldPage, path.dirname(file), path.basename(file, opt.extension)+'html');
-		}
-		testHtmlFiles.push(testHtmlFile);
-	}
-	return testHtmlFiles;
-}
 
-function filePathToUrl(filePaths, host){
-	var urls = [];
-	path = require('path');
-	rec(filePaths);
-	function rec(filePaths){
-		file = filePaths.pop();
-		if (file){
-			file = path.relative(process.cwd(),file);
-			urls.push(file.replace(opt.testDir, host + '/test'))
-			rec(filePaths);
-		}
-	}
-	return urls
-}
 
 /**
  * Creates a testrunner that run a single html file at a time.
@@ -194,95 +168,3 @@ function TestRunner(testSuiteUrls, opt){
 	}
 }
 
-
-
-/**
- * Lookup file names at the given `path` that match extension
- * 
- * @paran path [String] path to directory
- * @param extentions
- *            [String] extension of file default spec.js
- */
-function lookupFiles(path, extensions) {
-	extensions = extensions ||  ['spec.js'];
-	var pathModule = require('path')
-  	,join = pathModule.join
-  	,basename = pathModule.basename
-    ,stat
-  	,files = []
-  	,re = new RegExp('\\.(' + extensions.join('|') + ')$');
-	
-  if (exists(path)) {
-	  stat = fs.statSync(path);
-	  if (stat.isFile()) return path;
-  }
-  fs.readdirSync(path).forEach(function(file){
-    file = join(path, file);
-    var stat = fs.statSync(file);
-    if (stat.isDirectory()) {
-      files = files.concat(lookupFiles(file,extensions));
-    }
-    if (!stat.isFile() || !re.test(file) || basename(file)[0] == '.') return;
-    files.push(file);
-  });
-  return files;
-}
-
-/**
- * Create a
- */
-function writeFileToDisk(string,directory,filename){
-	var fs = require('fs');
-	filePath = path.resolve(directory+path.sep,filename)
-	fs.writeFileSync(filePath,string);
-	return filePath;
-};
-
-/**
- * Creates a requireJs driven html test page with mocka and chai (
- * 
- * @param files
- *            [Array] of javascript test files to be used in this test case
- * @param mainDir
- *            [String] path to the root of the javascrit for the app
- * @param mainDir
- *            [String] path to the test root of the javascrit.
- * @return [String] a string containing the html with html doctype
- */
-function createHtmlPage(files,mainDir,testDir,templatePath) {
-	var relToTestDir
-	,relToMainDir
-	,relMainToTest 
-	,i
-	,replacements = {}
-	,ejs = require('ejs');
-	
-	if ( !(files instanceof Array) || files.length == 1){	  
-		var file = files;
-		var fileDir = path.dirname(file);
-		replacements.relToTestDir = path.relative(fileDir,testDir)+'/';
-		replacements.relToMainDir = path.relative(fileDir,mainDir)+'/';
-		replacements.relTestToMain = '../' + path.relative(testDir, mainDir) + '/';	
-		replacements.relMainToTest = '../' + path.relative(mainDir,testDir) + '/';	
-		file = file.replace(testDir+'/','test/');
-		replacements.testSuites = JSON.stringify([file.replace('.js','')]);
-		
-	}else{
-		relToTestDir = '';
-		relToMainDir = '../main/';
-		relMainToTest = '../../test/';		
-		for (i = 0 ; files.length > i ; i++){
-			files[i]=files[i].replace(testDir,'');
-		};
-	}
-	
-	var testSuites = [];
-	for (var i in files){
-		testSuites.push('test/'+files[i]);
-	}
-	
-	template = fs.readFileSync(path.resolve(process.cwd()+ path.sep+ templatePath),'utf-8');
-	html = ejs.render(template, replacements);
-		
-	return html;
-}

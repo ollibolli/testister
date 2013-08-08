@@ -4151,3 +4151,7 @@ if (typeof module == "object" && typeof require == "function") {
 }(typeof sinon == "object" && sinon || null, typeof window != "undefined" ? window : global));
 
 return sinon;}.call(typeof window != 'undefined' && window || {}));
+
+define(function(){
+	return sinon;
+});
