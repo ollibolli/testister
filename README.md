@@ -6,7 +6,8 @@ Testisters goal is to create unit test for javascript that can be added to a con
 But also is straight forward and easy to use in the development phase. 
 
 Testister is driven by Nodejs and uses PhantomJs as a headless browser. It uses RequireJS as module loader, Mocka 
-as javascript test runner, chai as it´s assert library and sinon as it´s mock library.  
+as javascript test runner, Chai as it´s assert library and Sinon as it´s mock library. It also uses Express to expose
+test resources to browser.
 
 Basic consepts
 =========
