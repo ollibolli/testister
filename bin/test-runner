@@ -25,13 +25,12 @@ program
   .option('-S, --server ', 'Start a http server',false)
   .option('-l, --logdir <logg-dir>', 'Specify the log output files (default targer)','target')
   .option('-x, --template <template>','Specify the path to a template file (default node_modules/testister/template.html','node_modules/testister/template.html')
-  .option('-c, --configfile <configfile>','Url to a configfile in json format','testister.conf');
+  .option('-c, --configfile <configfile>','Url to a configfile in json format','testister.conf.json');
   
   program.on('--help', function(){
-  console.log('Examples:');
-  console.log('This package is a comandline and browser based test-framework for testing amd modules using the requireJs library.');
+  console.log('This package is a comandline and browser based test-framework for testing amd modules using the RequireJs library.');
   console.log('');
-  console.log('The the testframework is based on requireJs as Amd loader, Mocha as test library, Chai as assertion library and Sinon as mock library ');
+  console.log('The the testframework is based on RequireJs as Amd loader, Mocha as test library, Chai as assertion library and Sinon as mock library ');
   console.log('Testister is');
   console.log('');
 });
