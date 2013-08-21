@@ -9,7 +9,7 @@
     "command line",
     "browser"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": {
     "name": "Olle svensson",
     "email": "olle@ollibolli.com",
@@ -37,7 +37,7 @@
     "ejs":"0.8.x ",
     "chokidar":"0.6.2"
   },
-  "_id": "testister@0.0.1",
+  "_id": "testister@0.0.2",
   "dist": {
     "shasum": "5fe959f6e794a03f806ffb95f023bfbde7f45548"
   }
