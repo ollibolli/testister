@@ -21,7 +21,7 @@ program
   .option('-t, --testDir <testdir>','Specify the path to the test directory (default src/test)','src/test')
   .option('-m, --mainDir <maindir>','Specify the path to the main directory (default src/main)','src/main')
   .option('-e, --extension <extension>', 'Specify the test file extention (default spec.js)','spec.js')
-  .option('-p, --port <port>', 'The port to start local http server (default 3000)',3000)
+  .option('-p, --port <port>', 'The port to start local http server (default 3456)',3456)
   .option('-S, --server ', 'Start a http server',false)
   .option('-l, --logdir <logg-dir>', 'Specify the log output files (default targer)','target')
   .option('-x, --template <template>','Specify the path to a template file (default node_modules/testister/template.html','node_modules/testister/template.html')
