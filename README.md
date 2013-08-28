@@ -83,7 +83,7 @@ Testister can be cofigurated by command line arguments
     -T, --timeout                    Set tests default timeout in ms
 
 
-You can also create a testister.config.json in your testDir folder of your project. It must be formated in json.
+You can also create a testister.config.json in your root folder of your project. It must be formated in json.
 This is an example of a testister.conf.json
 
     {
