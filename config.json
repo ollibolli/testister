@@ -1,8 +1,0 @@
-{
-  "extension" : '.spec.js',
-  "mainDir" : 'src/main',
-  "testDir" : 'src/test',
-  "reporter" :'list',
-  "testJslibs" : undefined,
-  "output": "./testResult.txt"
-}

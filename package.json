@@ -31,11 +31,15 @@
     "testister": "./bin/test-runner"
   },
   "dependencies": {
-    "commander": "~ 1.0.5",
+    "commander": "2.x",
     "express": "3.x",
     "phantomjs": "1.9",
     "ejs":"0.8.x ",
     "chokidar":"0.6.2"
+  },
+  "devDependencies": {
+  	"chai": "1.7.x",
+  	"mocha": "1.12.x"
   },
   "_id": "testister@0.0.2",
   "dist": {

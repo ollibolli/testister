@@ -24,7 +24,7 @@
 		 	mocha.setup("bdd");  
 		 	require( <%- testSuites %> , function(BaseSpec){  
 		 		if (window.mochaPhantomJS) {   
-		 			mochaPhantomJS.run();  
+					mochaPhantomJS.run();  
 		 		}else {  
 		 			mocha.setup({reporter:"html"});  
 		 			mocha.run();  
