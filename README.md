@@ -44,7 +44,7 @@ Testister can be cofigurated by command line arguments
   Usage: testister [options] [path(testfile or dirctory)] []....
 
   Options:
-
+  
     -h, --help                      output usage information
     -V, --version                   output the version number
     -t, --testDir <test directory>  Specify the path to the test directory (default src/test)
