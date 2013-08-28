@@ -56,29 +56,32 @@ Testister is run from command prompt.
 or if you installed it global 
 
     $ testister 
+    
+the command have to be run from project root folder.
 
 Configuration
 ---
 Testister can be cofigurated by command line arguments 
 
     Usage: testister [options] [path(testfile or dirctory)] []....
-
+    
     Options:
-        
-    -h, --help                      output usage information
-    -V, --version                   output the version number
-    -t, --test-dir <test directory> Specify the path to the test directory (default src/test)
-    -m, --main-dir <main directory> Specify the path to the main directory (default src/main)
-    -R, --reporter <name>           Specify the reporter to use (default spec) available tap,spec,json,list,dot
-    -e, --extension <extension>     Files with this extention will be included  (default spec.js)
-    -p, --port <port>               The port to start local http server (default 3456)
-    -l, --log-dir <logg directory>  Specify the log output files directory(default target) 
-    -x, --template <template>       Specify the path to a template file (default node_modules/testister/template.html
-    -s, --scaffold                  Creates a html test files for every test module and exits
-    -S, --server                    Start a http server (no test is performed
-    -c, --configfile <configfile>   Url to a configfile in json format
-    -C, --clean <directory>         Remove testmodules scaffolded html files in directory
-    -T, --timeout <timeout>         Set tests default timeout in ms
+    
+    -h, --help                       output usage information
+    -V, --version                    output the version number
+    -t, --test-dir <test directory>  Specify the path to the test directory (default src/test)
+    -m, --main-dir <main directory>  Specify the path to the main directory (default src/main)
+    -R, --reporter <name>            Specify the reporter to use (default spec) available tap,spec,json,list,dot
+    -e, --extension <extension>      Files with this extention will be included  (default spec.js)
+    -p, --port <port>                The port to start local http server (default 3330)
+    -l, --log-dir <logg-dir>         Specify the log output files directory(default target) 
+    -x, --template <template>        Specify the path to a template file (default node_modules/testister/template.html
+    -s, --scaffold                   Creates a html test files for every test module and exits
+    -S, --server                     Start a http server and expose tests. http://localhost:<port>/test/ (no test is performed
+    -c, --config-file <configfile>   Url to a configfile in json format (default ./testister.conf.json)
+    -C, --clean <directory>          Remove testmodules scaffolded html files in directory
+    -T, --timeout                    Set tests default timeout in ms
+
 
 You can also create a testister.config.json in your testDir folder of your project. It must be formated in json.
 This is an example of a testister.conf.json
